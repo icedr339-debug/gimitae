@@ -100,14 +100,10 @@
         import { getDatabase, ref, push, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
         // ---------------------------------------------------------
-        // [1] Firebase 초기화 (제공해주신 정보 사용)
-        // ---------------------------------------------------------
-// ---------------------------------------------------------
-        // [1] Firebase 초기화 (새로운 주소 적용)
+        // [1] Firebase 초기화
         // ---------------------------------------------------------
         const firebaseConfig = {
-            // ★ 중요: 아래 apiKey, messagingSenderId, appId는 새 프로젝트의 값으로 꼭 채워넣어주세요!
-            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8",
+            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8", // ★ 기존 Firebase API 키를 다시 넣어주세요. (Firebase 키는 노출되어도 괜찮은 퍼블릭 키입니다)
             authDomain: "fdfdfdf-62a41.firebaseapp.com",
             databaseURL: "https://fdfdfdf-62a41-default-rtdb.firebaseio.com",
             projectId: "fdfdfdf-62a41",
@@ -123,9 +119,11 @@
         let currentUser = null;
 
         // ---------------------------------------------------------
-        // [2] 전역 변수 및 설정
+        // [2] 전역 변수 및 설정 (Apps Script 연동)
         // ---------------------------------------------------------
-        const OPENAI_API_KEY = "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"; // ★여기에 본인 OpenAI API 키 입력★
+        // ★여기에 새로 배포한 Google Apps Script 웹앱 URL을 입력하세요★
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUbYSYPw0bOL6az6NqVDgtl4H-6Pl9_5HlSXsArOhuzZlCXw6j7G2_0e-kuzU8Rx-A/exec"; 
+        
         let currentSuspectPersona = "";
         let chatHistory = [];
         let suspectMesh; 
@@ -177,15 +175,13 @@
 
         logoutBtn.addEventListener('click', async () => {
             await signOut(auth);
-            exitGame(); // 로그아웃 시 진행중인 게임도 종료
+            exitGame(); 
         });
 
-        // 엔터키로 로그인
         document.getElementById('passwordInput').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') loginBtn.click();
         });
 
-        // 인증 상태 감지자
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -216,7 +212,6 @@
         renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
 
-        // 바닥 & 테이블
         const floorGeo = new THREE.PlaneGeometry(10, 10);
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
         const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -231,7 +226,6 @@
         table.receiveShadow = true; table.castShadow = true;
         scene.add(table);
 
-        // 임시 용의자 매쉬 (원기둥+구체)
         const group = new THREE.Group();
         const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0x555555 }));
         body.position.y = 0.3; body.castShadow = true; group.add(body);
@@ -242,7 +236,6 @@
         scene.add(group);
         suspectMesh = group;
 
-        // 조명 (스포트라이트)
         const spotLight = new THREE.SpotLight(0xffffff, 2);
         spotLight.position.set(0, 3, 0.8);
         spotLight.angle = Math.PI / 4;
@@ -253,7 +246,7 @@
 
         function animate(time) {
             requestAnimationFrame(animate);
-            if(suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(time * 0.003) * 0.01; // 호흡 애니메이션
+            if(suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(time * 0.003) * 0.01; 
             renderer.render(scene, camera);
         }
         animate();
@@ -265,13 +258,16 @@
         });
 
         // ---------------------------------------------------------
-        // [5] 게임 코어 로직 (사건 생성 및 대화)
+        // [5] 게임 코어 로직 (사건 생성 및 대화 - GAS 프록시 경유)
         // ---------------------------------------------------------
         startBtn.addEventListener('click', initGame);
         exitGameBtn.addEventListener('click', exitGame);
 
         async function initGame() {
-            if(OPENAI_API_KEY === "YOUR_OPENAI_API_KEY") { alert("코드 내의 OPENAI_API_KEY를 설정하세요!"); return; }
+            if(APPS_SCRIPT_URL === "https://script.google.com/macros/s/본인의_스크립트_아이디/exec") { 
+                alert("코드 내의 APPS_SCRIPT_URL을 본인의 구글 스크립트 URL로 설정하세요!"); 
+                return; 
+            }
             
             lobbySection.classList.add('hidden');
             gameUI.classList.remove('hidden');
@@ -286,10 +282,14 @@
             }`;
 
             try {
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                // OpenAI가 아닌 Apps Script(GAS)로 요청 전송
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
+                    body: JSON.stringify({ 
+                        model: "gpt-4o-mini", 
+                        messages: [{ role: "user", content: prompt }], 
+                        response_format: { type: "json_object" } 
+                    })
                 });
 
                 const data = await response.json();
@@ -301,17 +301,17 @@
                 chatHistory = [{ role: "system", content: currentSuspectPersona }];
                 addLog("system", `용의자 ${gameData.suspect_name}이(가) 입실했습니다. 심문을 시작하십시오.`);
             } catch (error) {
-                briefTextEl.innerText = "사건 생성 실패. API 키를 확인하세요.";
+                console.error(error);
+                briefTextEl.innerText = "사건 생성 실패. Apps Script 연결을 확인하세요.";
             }
         }
 
         function exitGame() {
             gameUI.classList.add('hidden');
             lobbySection.classList.remove('hidden');
-            window.speechSynthesis.cancel(); // 말하던거 정지
+            window.speechSynthesis.cancel(); 
         }
 
-        // HTML의 onclick에서 호출할 수 있도록 window 객체에 할당
         window.sendQuestion = async function() {
             const question = userInputEl.value.trim();
             if(!question) return;
@@ -320,26 +320,29 @@
             addLog("detective", question);
             chatHistory.push({ role: "user", content: question });
 
-            // 줌인 연출
             suspectMesh.scale.set(1.05, 1.05, 1.05); 
 
             try {
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                // 대화 내역(chatHistory)을 통째로 Apps Script로 전송
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-                    body: JSON.stringify({ model: "gpt-4o-mini", messages: chatHistory })
+                    body: JSON.stringify({ 
+                        model: "gpt-4o-mini", 
+                        messages: chatHistory 
+                    })
                 });
 
                 const data = await response.json();
                 const answer = data.choices[0].message.content;
                 
-                suspectMesh.scale.set(1, 1, 1); // 줌아웃
+                suspectMesh.scale.set(1, 1, 1); 
                 addLog("suspect", answer);
                 chatHistory.push({ role: "assistant", content: answer });
 
                 speak(answer);
-                saveLogToRealtimeDB(question, answer); // Realtime DB 저장
+                saveLogToRealtimeDB(question, answer); 
             } catch (error) {
+                console.error(error);
                 addLog("system", "통신 오류 발생.");
                 suspectMesh.scale.set(1, 1, 1);
             }
@@ -369,7 +372,6 @@
         async function saveLogToRealtimeDB(q, a) {
             if (!currentUser) return;
             try {
-                // 유저 UID 아래의 interrogation_logs 경로에 푸시
                 const logsRef = ref(database, `users/${currentUser.uid}/interrogation_logs`);
                 const newLogRef = push(logsRef);
                 
