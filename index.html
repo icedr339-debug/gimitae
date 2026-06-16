@@ -153,13 +153,19 @@
         const signupBtn = document.getElementById('signupBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const userEmailSpan = document.getElementById('userEmail');
+        
         const startBtn = document.getElementById('start-btn');
         const exitGameBtn = document.getElementById('exit-game-btn');
+        
         const chatLogEl = document.getElementById('chat-log');
         const userInputEl = document.getElementById('user-input');
         const briefTextEl = document.getElementById('brief-text');
         const evidenceListEl = document.getElementById('evidence-list');
         const tooltipEl = document.getElementById('tooltip');
+
+        // ★ 범인: 이 두 줄을 빼먹어서 버튼이 안 눌렸습니다! 다시 살려놨습니다. ★
+        startBtn.addEventListener('click', initGame);
+        exitGameBtn.addEventListener('click', exitGame);
 
         function getEmailAndPassword() { const e = emailInput.value.trim(), p = passwordInput.value.trim(); if (!e || !p) return alert('입력 필요'), null; if (p.length < 6) return alert('6자리 이상'), null; return { email:e, password:p }; }
         signupBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await createUserWithEmailAndPassword(auth, acc.email, acc.password); alert('가입 완료'); }catch(e){ alert(e.code); }});
@@ -215,7 +221,6 @@
             updateEvidenceUI();
             briefTextEl.innerText = "상부에서 새로운 사건 파일을 전송 중입니다...";
 
-            // ★ 관계 정보를 추가로 요청하는 프롬프트로 변경 ★
             const prompt = `당신은 추리 게임 마스터입니다. 매번 '독살'이 아닌 완전히 새로운 유형의 범죄 사건(예: 미술품 도난, 밀실 살인, 기업 해킹, 납치, 방화, 횡령, 사기 등)을 무작위로 생성하고, 반드시 아래 JSON 형식으로 응답하세요.
             {
                 "brief": "사건 개요 (시간, 장소, 내용, 피해자)",
@@ -237,7 +242,6 @@
                 const data = await response.json();
                 const gameData = JSON.parse(data.choices[0].message.content);
 
-                // ★ UI에 관계 정보 추가 렌더링 ★
                 briefTextEl.innerHTML = `
                     <strong>용의자:</strong> ${gameData.suspect_name}<br>
                     <span class="relationship-text">관계: ${gameData.relationship}</span><br><br>
