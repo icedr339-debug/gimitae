@@ -14,7 +14,7 @@
         .ui-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(10,10,10,0.9); }
         .hidden { display: none !important; }
         
-        /* --- 로그인 & 회원가입 화면 (Auth Section) --- */
+        /* --- 로그인 & 회원가입 화면 --- */
         .auth-box { background: #1a1a1a; padding: 30px; border-radius: 10px; border: 1px solid #ff3333; text-align: center; width: 300px; box-shadow: 0 0 20px rgba(255, 51, 51, 0.2); }
         .auth-box h1 { color: #ff3333; margin-top: 0; }
         .auth-box input { width: 90%; padding: 10px; margin-bottom: 10px; background: #000; border: 1px solid #555; color: #fff; border-radius: 5px; }
@@ -22,7 +22,7 @@
         .auth-box button:hover { background: #ff3333; color: #000; }
         .notice { font-size: 0.8rem; color: #aaa; margin-top: 15px; }
 
-        /* --- 게임 준비 화면 (Lobby Section) --- */
+        /* --- 게임 준비 화면 --- */
         #lobby-section h1 { color: #ff3333; font-size: 3rem; margin-bottom: 10px; }
         #lobby-section p { font-size: 1.2rem; margin-bottom: 20px; }
         .action-btn { padding: 15px 30px; background: #222; border: 2px solid #33ff33; color: #33ff33; font-size: 1.2rem; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; margin: 5px; }
@@ -31,10 +31,20 @@
         .logout-btn:hover { background: #ff3333; color: #000; box-shadow: 0 0 15px #ff3333; }
         #user-info-display { margin-bottom: 20px; color: #888; }
 
-        /* --- 게임 플레이 화면 UI (Game Section) --- */
+        /* --- 게임 플레이 화면 UI --- */
         #game-ui { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 5; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+        #exit-game-btn { position: absolute; top: 20px; right: 20px; padding: 8px 15px; background: #222; border: 1px solid #ff3333; color: #ff3333; cursor: pointer; pointer-events: auto; border-radius: 3px; z-index: 20; }
+        #exit-game-btn:hover { background: #ff3333; color: #000; }
+        
         #case-brief { margin: 20px; padding: 15px; background: rgba(0, 0, 0, 0.75); border: 1px solid #ff3333; border-radius: 5px; max-width: 400px; pointer-events: auto; max-height: 250px; overflow-y: auto; }
         #case-brief h3 { margin-top: 0; color: #ff3333; }
+        
+        /* 획득 증거품 UI 추가 */
+        #evidence-board { position: absolute; top: 80px; right: 20px; background: rgba(0, 0, 0, 0.8); border: 1px solid #00e5ff; border-radius: 5px; padding: 15px; width: 200px; pointer-events: auto; }
+        #evidence-board h3 { margin-top: 0; color: #00e5ff; font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        #evidence-list { list-style: none; padding: 0; margin: 0; color: #ccc; font-size: 0.95rem; }
+        #evidence-list li { margin-bottom: 8px; padding-left: 15px; position: relative; }
+        #evidence-list li::before { content: '📁'; position: absolute; left: 0; font-size: 0.8rem; }
         
         #chat-section { margin: 20px; padding: 15px; background: rgba(0, 0, 0, 0.8); border: 1px solid #33ff33; border-radius: 5px; width: calc(100% - 70px); max-width: 800px; align-self: center; pointer-events: auto; }
         #chat-log { height: 180px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #333; font-size: 1.1rem; line-height: 1.5; }
@@ -46,8 +56,6 @@
         #user-input { flex: 1; padding: 12px; background: #111; border: 1px solid #33ff33; color: #fff; border-radius: 3px; font-size: 1rem; }
         #send-btn { padding: 10px 20px; background: #222; border: 1px solid #33ff33; color: #33ff33; cursor: pointer; font-weight: bold; border-radius: 3px; }
         #send-btn:hover { background: #33ff33; color: #000; }
-        #exit-game-btn { position: absolute; top: 20px; right: 20px; padding: 8px 15px; background: #222; border: 1px solid #ff3333; color: #ff3333; cursor: pointer; pointer-events: auto; border-radius: 3px; }
-        #exit-game-btn:hover { background: #ff3333; color: #000; }
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -63,9 +71,7 @@
                 <button id="loginBtn">로그인</button>
                 <button id="signupBtn">신규 등록</button>
             </div>
-            <div class="notice">
-                처음 오신 분은 신규 등록을,<br>기존 요원은 로그인을 진행해 주세요.
-            </div>
+            <div class="notice">처음 오신 분은 신규 등록을,<br>기존 요원은 로그인을 진행해 주세요.</div>
         </div>
     </div>
 
@@ -78,11 +84,20 @@
     </div>
 
     <div id="game-ui" class="hidden">
-        <button id="exit-game-btn">심문 종료 (로비로)</button>
+        <button id="exit-game-btn">심문 포기 (로비로)</button>
+        
         <div id="case-brief">
             <h3>[사건 브리핑]</h3>
             <div id="brief-text">사건을 생성하는 중입니다... 잠시만 기다려주세요.</div>
         </div>
+        
+        <div id="evidence-board">
+            <h3>획득한 증거품</h3>
+            <ul id="evidence-list">
+                <li style="color:#555;">아직 발견된 증거가 없습니다.</li>
+            </ul>
+        </div>
+
         <div id="chat-section">
             <div id="chat-log"></div>
             <div id="input-area">
@@ -99,11 +114,9 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
         import { getDatabase, ref, push, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
-        // ---------------------------------------------------------
         // [1] Firebase 초기화
-        // ---------------------------------------------------------
         const firebaseConfig = {
-            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8", // ★ 기존 Firebase API 키를 다시 넣어주세요. (Firebase 키는 노출되어도 괜찮은 퍼블릭 키입니다)
+            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8", // 본인의 Firebase API 키
             authDomain: "fdfdfdf-62a41.firebaseapp.com",
             databaseURL: "https://fdfdfdf-62a41-default-rtdb.firebaseio.com",
             projectId: "fdfdfdf-62a41",
@@ -118,37 +131,33 @@
         const database = getDatabase(app);
         let currentUser = null;
 
-        // ---------------------------------------------------------
-        // [2] 전역 변수 및 설정 (Apps Script 연동)
-        // ---------------------------------------------------------
-        // ★여기에 새로 배포한 Google Apps Script 웹앱 URL을 입력하세요★
+        // [2] Apps Script 연동
+        // ★여기에 본인의 Google Apps Script 웹앱 URL을 입력하세요★
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUbYSYPw0bOL6az6NqVDgtl4H-6Pl9_5HlSXsArOhuzZlCXw6j7G2_0e-kuzU8Rx-A/exec"; 
         
         let currentSuspectPersona = "";
         let chatHistory = [];
         let suspectMesh; 
+        let evidenceArray = []; // 획득한 증거품 배열
 
-        // UI 요소 캐싱
+        // UI 캐싱
         const authSection = document.getElementById('authSection');
         const lobbySection = document.getElementById('lobbySection');
         const gameUI = document.getElementById('game-ui');
-        
         const emailInput = document.getElementById('emailInput');
         const passwordInput = document.getElementById('passwordInput');
         const loginBtn = document.getElementById('loginBtn');
         const signupBtn = document.getElementById('signupBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const userEmailSpan = document.getElementById('userEmail');
-        
         const startBtn = document.getElementById('start-btn');
         const exitGameBtn = document.getElementById('exit-game-btn');
         const chatLogEl = document.getElementById('chat-log');
         const userInputEl = document.getElementById('user-input');
         const briefTextEl = document.getElementById('brief-text');
+        const evidenceListEl = document.getElementById('evidence-list');
 
-        // ---------------------------------------------------------
-        // [3] 인증 (Auth) 로직
-        // ---------------------------------------------------------
+        // [3] 인증 로직 (생략 - 기존과 동일)
         function getEmailAndPassword() {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
@@ -156,147 +165,79 @@
             if (password.length < 6) { alert('비밀번호는 6자리 이상이어야 합니다.'); return null; }
             return { email, password };
         }
-
-        signupBtn.addEventListener('click', async () => {
-            const acc = getEmailAndPassword();
-            if (!acc) return;
-            try {
-                await createUserWithEmailAndPassword(auth, acc.email, acc.password);
-                alert('요원 등록 완료!');
-            } catch (error) { alert(`오류 발생: ${error.code}`); }
-        });
-
-        loginBtn.addEventListener('click', async () => {
-            const acc = getEmailAndPassword();
-            if (!acc) return;
-            try { await signInWithEmailAndPassword(auth, acc.email, acc.password); } 
-            catch (error) { alert(`로그인 실패: ${error.code}`); }
-        });
-
-        logoutBtn.addEventListener('click', async () => {
-            await signOut(auth);
-            exitGame(); 
-        });
-
-        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loginBtn.click();
-        });
-
+        signupBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await createUserWithEmailAndPassword(auth, acc.email, acc.password); alert('요원 등록 완료!'); }catch(e){ alert(`오류 발생: ${e.code}`); }});
+        loginBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await signInWithEmailAndPassword(auth, acc.email, acc.password); }catch(e){ alert(`로그인 실패: ${e.code}`); }});
+        logoutBtn.addEventListener('click', async () => { await signOut(auth); exitGame(); });
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                authSection.classList.add('hidden');
-                lobbySection.classList.remove('hidden');
-                userEmailSpan.textContent = user.email;
-            } else {
-                currentUser = null;
-                authSection.classList.remove('hidden');
-                lobbySection.classList.add('hidden');
-                gameUI.classList.add('hidden');
-            }
+            if (user) { currentUser = user; authSection.classList.add('hidden'); lobbySection.classList.remove('hidden'); userEmailSpan.textContent = user.email; }
+            else { currentUser = null; authSection.classList.remove('hidden'); lobbySection.classList.add('hidden'); gameUI.classList.add('hidden'); }
         });
 
-        // ---------------------------------------------------------
-        // [4] Three.js 3D 환경 구축
-        // ---------------------------------------------------------
+        // [4] Three.js 3D (생략 - 기존과 동일)
         const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        scene.fog = new THREE.FogExp2(0x050505, 0.15);
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050505); scene.fog = new THREE.FogExp2(0x050505, 0.15);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.set(0, 1.6, 2.5);
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; container.appendChild(renderer.domElement);
+        const floorGeo = new THREE.PlaneGeometry(10, 10); const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }); const floor = new THREE.Mesh(floorGeo, floorMat); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+        const tableGeo = new THREE.BoxGeometry(1.6, 0.75, 0.9); const tableMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }); const table = new THREE.Mesh(tableGeo, tableMat); table.position.set(0, 0.375, 0.8); table.receiveShadow = true; table.castShadow = true; scene.add(table);
+        const group = new THREE.Group(); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0x555555 })); body.position.y = 0.3; body.castShadow = true; group.add(body); const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 32), new THREE.MeshStandardMaterial({ color: 0xddaa88 })); head.position.y = 0.7; head.castShadow = true; group.add(head); group.position.set(0, 0.5, 0); scene.add(group); suspectMesh = group;
+        const spotLight = new THREE.SpotLight(0xffffff, 2); spotLight.position.set(0, 3, 0.8); spotLight.angle = Math.PI / 4; spotLight.penumbra = 0.5; spotLight.castShadow = true; scene.add(spotLight); scene.add(new THREE.AmbientLight(0x111111));
+        function animate(time) { requestAnimationFrame(animate); if(suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(time * 0.003) * 0.01; renderer.render(scene, camera); } animate();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 2.5);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        container.appendChild(renderer.domElement);
-
-        const floorGeo = new THREE.PlaneGeometry(10, 10);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        const tableGeo = new THREE.BoxGeometry(1.6, 0.75, 0.9);
-        const tableMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
-        const table = new THREE.Mesh(tableGeo, tableMat);
-        table.position.set(0, 0.375, 0.8);
-        table.receiveShadow = true; table.castShadow = true;
-        scene.add(table);
-
-        const group = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0x555555 }));
-        body.position.y = 0.3; body.castShadow = true; group.add(body);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 32), new THREE.MeshStandardMaterial({ color: 0xddaa88 }));
-        head.position.y = 0.7; head.castShadow = true; group.add(head);
-        
-        group.position.set(0, 0.5, 0);
-        scene.add(group);
-        suspectMesh = group;
-
-        const spotLight = new THREE.SpotLight(0xffffff, 2);
-        spotLight.position.set(0, 3, 0.8);
-        spotLight.angle = Math.PI / 4;
-        spotLight.penumbra = 0.5;
-        spotLight.castShadow = true;
-        scene.add(spotLight);
-        scene.add(new THREE.AmbientLight(0x111111));
-
-        function animate(time) {
-            requestAnimationFrame(animate);
-            if(suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(time * 0.003) * 0.01; 
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // ---------------------------------------------------------
-        // [5] 게임 코어 로직 (사건 생성 및 대화 - GAS 프록시 경유)
-        // ---------------------------------------------------------
+        // [5] 게임 코어 로직 (증거 수집 및 자백 시스템 추가)
         startBtn.addEventListener('click', initGame);
         exitGameBtn.addEventListener('click', exitGame);
 
+        function updateEvidenceUI() {
+            evidenceListEl.innerHTML = '';
+            if (evidenceArray.length === 0) {
+                evidenceListEl.innerHTML = '<li style="color:#555;">아직 발견된 증거가 없습니다.</li>';
+                return;
+            }
+            evidenceArray.forEach(ev => {
+                const li = document.createElement('li');
+                li.textContent = ev;
+                evidenceListEl.appendChild(li);
+            });
+        }
+
         async function initGame() {
             if(APPS_SCRIPT_URL === "https://script.google.com/macros/s/본인의_스크립트_아이디/exec") { 
-                alert("코드 내의 APPS_SCRIPT_URL을 본인의 구글 스크립트 URL로 설정하세요!"); 
-                return; 
+                alert("코드 내의 APPS_SCRIPT_URL을 본인의 구글 스크립트 URL로 설정하세요!"); return; 
             }
             
             lobbySection.classList.add('hidden');
             gameUI.classList.remove('hidden');
             chatLogEl.innerHTML = '';
+            evidenceArray = []; // 증거 초기화
+            updateEvidenceUI();
             briefTextEl.innerText = "상부에서 새로운 사건 파일을 전송 중입니다...";
 
             const prompt = `당신은 추리 게임 마스터입니다. 무작위 범죄 사건을 만들고, 반드시 아래 JSON 형식으로만 응답하세요.
             {
                 "brief": "사건 개요 (시간, 장소, 내용, 피해자)",
                 "suspect_name": "용의자 이름",
-                "suspect_persona": "용의자의 성격, 알리바이, 거짓말하는 부분, 결정적 증거 압박 시 반응 등 상세 지침"
+                "suspect_persona": "용의자의 성격, 알리바이, 거짓말하는 부분, 어떤 증거를 대면 무너질지 상세 지침"
             }`;
 
             try {
-                // OpenAI가 아닌 Apps Script(GAS)로 요청 전송
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ 
-                        model: "gpt-4o-mini", 
-                        messages: [{ role: "user", content: prompt }], 
-                        response_format: { type: "json_object" } 
-                    })
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } })
                 });
 
                 const data = await response.json();
                 const gameData = JSON.parse(data.choices[0].message.content);
 
                 briefTextEl.innerHTML = `<strong>용의자:</strong> ${gameData.suspect_name}<br><br>${gameData.brief}`;
-                currentSuspectPersona = `너는 취조실에 잡혀온 용의자 '${gameData.suspect_name}'이다. 페르소나: ${gameData.suspect_persona}. 탐정의 질문에 용의자 시점에서 반말로 억울하거나 당황한 듯 대답해. 대답은 2문장 이내.`;
+                
+                // ★ 시스템 프롬프트 업데이트: 자백 및 증거 획득 태그 지시 ★
+                currentSuspectPersona = `너는 취조실에 잡혀온 용의자 '${gameData.suspect_name}'이다. 페르소나: ${gameData.suspect_persona}. 탐정의 질문에 용의자 시점에서 반말로 억울하거나 당황한 듯 대답해. 대답은 2~3문장 이내. 
+                [핵심 규칙] 
+                1. 만약 탐정의 날카로운 질문이나 논리에 모순이 드러나 범행을 시인해야만 하는 상황이 되면, 반드시 답변 제일 앞에 '[자백]' 이라고 적고 범행을 인정해라. 
+                2. 대화 도중 용의자의 실수나 탐정의 유도신문으로 새로운 단서(예: 흉기, 영수증, 알리바이 불일치 증명 등)가 맥락상 드러났다면, 답변 아무 곳에나 '[증거획득:증거품이름]' 형식으로 태그를 달아라. (예: '[증거획득:피 묻은 셔츠]')`;
                 
                 chatHistory = [{ role: "system", content: currentSuspectPersona }];
                 addLog("system", `용의자 ${gameData.suspect_name}이(가) 입실했습니다. 심문을 시작하십시오.`);
@@ -323,24 +264,56 @@
             suspectMesh.scale.set(1.05, 1.05, 1.05); 
 
             try {
-                // 대화 내역(chatHistory)을 통째로 Apps Script로 전송
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ 
-                        model: "gpt-4o-mini", 
-                        messages: chatHistory 
-                    })
+                    body: JSON.stringify({ model: "gpt-4o-mini", messages: chatHistory })
                 });
 
                 const data = await response.json();
-                const answer = data.choices[0].message.content;
+                let answer = data.choices[0].message.content;
+                chatHistory.push({ role: "assistant", content: answer }); // AI 본래 답변은 역사에 원형대로 저장
                 
-                suspectMesh.scale.set(1, 1, 1); 
-                addLog("suspect", answer);
-                chatHistory.push({ role: "assistant", content: answer });
+                // ★ 1. 자백 태그 파싱 ★
+                let isConfessed = false;
+                if (answer.includes('[자백]')) {
+                    isConfessed = true;
+                    answer = answer.replace(/\[자백\]/g, '').trim(); // 화면 출력용에서는 태그 제거
+                }
 
-                speak(answer);
-                saveLogToRealtimeDB(question, answer); 
+                // ★ 2. 증거 획득 태그 파싱 ★
+                const evidenceRegex = /\[증거획득:(.*?)\]/g;
+                let match;
+                let foundNewEvidence = false;
+                while ((match = evidenceRegex.exec(answer)) !== null) {
+                    const evidenceName = match[1].trim();
+                    if (!evidenceArray.includes(evidenceName)) {
+                        evidenceArray.push(evidenceName);
+                        foundNewEvidence = true;
+                    }
+                }
+                
+                if (foundNewEvidence) {
+                    updateEvidenceUI();
+                    addLog("system", `💡 새로운 증거품을 획득했습니다! (우측 보드 확인)`);
+                }
+                
+                // 화면 및 음성 출력용에서는 증거 태그도 깨끗하게 제거
+                let displayText = answer.replace(evidenceRegex, '').trim();
+
+                suspectMesh.scale.set(1, 1, 1); 
+                addLog("suspect", displayText);
+
+                speak(displayText);
+                saveLogToRealtimeDB(question, displayText); 
+
+                // 자백 시 게임 종료 처리
+                if (isConfessed) {
+                    setTimeout(() => {
+                        alert("🎉 완벽한 심문이었습니다! 용의자가 자백했습니다.\n사건이 종결됩니다.");
+                        exitGame();
+                    }, 500); // 음성이 시작되고 약간의 시간차를 둔 후 팝업
+                }
+
             } catch (error) {
                 console.error(error);
                 addLog("system", "통신 오류 발생.");
@@ -360,32 +333,22 @@
             msgDiv.className = "msg";
             if(sender === "detective") msgDiv.innerHTML = `<span class="detective">나:</span> ${text}`;
             else if(sender === "suspect") msgDiv.innerHTML = `<span class="suspect">용의자:</span> ${text}`;
-            else msgDiv.innerHTML = `<i style="color:#aaa;">${text}</i>`;
+            else msgDiv.innerHTML = `<i style="color:#00e5ff;">${text}</i>`;
             
             chatLogEl.appendChild(msgDiv);
             chatLogEl.scrollTop = chatLogEl.scrollHeight;
         }
 
-        // ---------------------------------------------------------
-        // [6] Firebase Realtime Database 저장
-        // ---------------------------------------------------------
         async function saveLogToRealtimeDB(q, a) {
             if (!currentUser) return;
             try {
                 const logsRef = ref(database, `users/${currentUser.uid}/interrogation_logs`);
                 const newLogRef = push(logsRef);
-                
-                await set(newLogRef, {
-                    timestamp: new Date().toLocaleString('ko-KR'),
-                    question: q,
-                    answer: a
-                });
-                console.log("대화 기록이 안전하게 저장되었습니다.");
+                await set(newLogRef, { timestamp: new Date().toLocaleString('ko-KR'), question: q, answer: a });
             } catch (e) {
                 console.error("Firebase DB 저장 실패: ", e);
             }
         }
-
     </script>
 </body>
 </html>
