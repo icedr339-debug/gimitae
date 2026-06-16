@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>취조실 (The Interrogation)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --red: #e63232;
+            --green: #2dff6e;
+            --cyan: #00e5ff;
+            --bg: #080808;
+            --surface: #111111;
+            --border: #2a2a2a;
+            --text: #cccccc;
+            --dim: #555555;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; overflow: hidden; }
+
+        /* ─── 공통 레이어 ─── */
+        .ui-layer {
+            position: fixed; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(5,5,5,0.94);
+        }
+        .hidden { display: none !important; }
+
+        /* ─── 인증 화면 ─── */
+        .auth-card {
+            background: var(--surface);
+            border: 1px solid var(--red);
+            border-radius: 6px;
+            padding: 36px 32px;
+            width: 320px;
+            box-shadow: 0 0 40px rgba(230,50,50,0.12);
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .auth-card h1 {
+            color: var(--red);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.3rem;
+            letter-spacing: 0.1em;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .auth-card input {
+            width: 100%; padding: 10px 12px;
+            background: #000; border: 1px solid var(--border);
+            color: #fff; border-radius: 4px; font-size: 0.95rem;
+            outline: none; transition: border-color 0.2s;
+        }
+        .auth-card input:focus { border-color: var(--red); }
+        .auth-row { display: flex; gap: 8px; }
+        .btn {
+            flex: 1; padding: 10px;
+            background: transparent; border-radius: 4px;
+            cursor: pointer; font-weight: 700; font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn-red   { border: 1px solid var(--red);   color: var(--red); }
+        .btn-red:hover   { background: var(--red);   color: #000; }
+        .btn-green { border: 1px solid var(--green); color: var(--green); }
+        .btn-green:hover { background: var(--green); color: #000; }
+        .btn-cyan  { border: 1px solid var(--cyan);  color: var(--cyan); }
+        .btn-cyan:hover  { background: var(--cyan);  color: #000; }
+        .auth-notice { font-size: 0.78rem; color: var(--dim); text-align: center; line-height: 1.6; }
+
+        /* ─── 로비 화면 ─── */
+        #lobby-section { gap: 16px; }
+        .lobby-title {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 2.8rem; color: var(--red);
+            letter-spacing: 0.05em; text-align: center;
+            text-shadow: 0 0 30px rgba(230,50,50,0.4);
+        }
+        .lobby-sub { color: var(--dim); font-size: 0.95rem; text-align: center; max-width: 360px; line-height: 1.7; }
+        .lobby-user { font-size: 0.85rem; color: var(--dim); }
+        .lobby-user span { color: #fff; }
+        .lobby-btns { display: flex; flex-direction: column; gap: 10px; width: 260px; margin-top: 8px; }
+        .lobby-btns .btn { flex: none; padding: 14px; font-size: 1rem; letter-spacing: 0.05em; }
+
+        /* ─── 3D 캔버스 ─── */
+        #canvas-container { position: fixed; inset: 0; z-index: 1; }
+
+        /* ─── 게임 UI ─── */
+        #game-ui {
+            position: fixed; inset: 0; z-index: 10;
+            display: flex; pointer-events: none;
+        }
+
+        /* 좌측 패널 */
+        #left-panel {
+            display: flex; flex-direction: column; justify-content: space-between;
+            width: 340px; padding: 16px; pointer-events: auto;
+        }
+
+        #case-brief {
+            background: rgba(0,0,0,0.82);
+            border: 1px solid var(--red);
+            border-radius: 6px; padding: 14px;
+            max-height: 46vh; overflow-y: auto;
+        }
+        #case-brief h3 {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--red); font-size: 0.85rem;
+            letter-spacing: 0.1em; margin-bottom: 10px;
+        }
+        .relationship-tag {
+            display: inline-block; background: rgba(255,153,0,0.12);
+            border: 1px solid #ff9900; color: #ff9900;
+            font-size: 0.78rem; padding: 2px 8px; border-radius: 3px;
+            margin-bottom: 10px;
+        }
+        #brief-text { font-size: 0.88rem; line-height: 1.7; color: #bbb; }
+
+        #chat-section {
+            background: rgba(0,0,0,0.85);
+            border: 1px solid var(--green);
+            border-radius: 6px; padding: 14px;
+        }
+        #chat-log {
+            height: 200px; overflow-y: auto;
+            margin-bottom: 10px; padding-right: 4px;
+            font-size: 0.92rem; line-height: 1.6;
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        #chat-log::-webkit-scrollbar { width: 4px; }
+        #chat-log::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        .msg-detective { color: var(--green); }
+        .msg-detective::before { content: '형사 ▶ '; font-weight: 700; }
+        .msg-suspect   { color: #ff9900; }
+        .msg-suspect::before { content: '용의자 ▷ '; font-weight: 700; }
+        .msg-system    { color: var(--cyan); font-size: 0.82rem; font-family: 'Share Tech Mono', monospace; }
+        #input-area { display: flex; gap: 8px; }
+        #user-input {
+            flex: 1; padding: 9px 12px;
+            background: #000; border: 1px solid var(--green);
+            color: #fff; border-radius: 4px; font-size: 0.9rem; outline: none;
+        }
+        #send-btn {
+            padding: 9px 16px;
+            background: transparent; border: 1px solid var(--green);
+            color: var(--green); border-radius: 4px;
+            cursor: pointer; font-weight: 700; font-size: 0.85rem;
+            pointer-events: auto; transition: 0.15s;
+        }
+        #send-btn:hover { background: var(--green); color: #000; }
+
+        /* 우측 패널 */
+        #right-panel {
+            position: absolute; top: 16px; right: 16px;
+            display: flex; flex-direction: column; gap: 10px;
+            pointer-events: auto;
+        }
+
+        #exit-game-btn {
+            align-self: flex-end; padding: 7px 14px;
+            background: transparent; border: 1px solid var(--red);
+            color: var(--red); border-radius: 4px;
+            cursor: pointer; font-size: 0.85rem; font-weight: 700;
+            pointer-events: auto; transition: 0.15s;
+        }
+        #exit-game-btn:hover { background: var(--red); color: #000; }
+
+        #evidence-board {
+            background: rgba(0,0,0,0.85);
+            border: 1px solid var(--cyan);
+            border-radius: 6px; padding: 14px;
+            width: 220px; max-height: 70vh; overflow-y: auto;
+        }
+        #evidence-board h3 {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--cyan); font-size: 0.82rem;
+            letter-spacing: 0.1em; margin-bottom: 10px;
+            text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;
+        }
+        #evidence-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        #evidence-list li {
+            background: #161616; border: 1px solid var(--border);
+            border-radius: 4px; padding: 8px 8px 8px 28px;
+            position: relative; font-size: 0.85rem; cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        #evidence-list li::before { content: '📁'; position: absolute; left: 6px; font-size: 0.8rem; }
+        #evidence-list li:hover { border-color: var(--cyan); background: #1a1a1a; color: #fff; }
+
+        /* 멘탈 게이지 */
+        #mental-gauge {
+            background: rgba(0,0,0,0.85); border: 1px solid #333;
+            border-radius: 6px; padding: 10px 14px;
+        }
+        #mental-gauge label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem; color: var(--dim); display: block; margin-bottom: 6px;
+        }
+        #mental-pips { display: flex; gap: 6px; }
+        .pip {
+            width: 28px; height: 10px; border-radius: 2px;
+            border: 1px solid var(--red); background: var(--red);
+            transition: background 0.3s;
+        }
+        .pip.empty { background: transparent; }
+
+        /* 툴팁 */
+        #tooltip {
+            position: fixed; z-index: 100; pointer-events: none;
+            background: rgba(10,10,10,0.96); border: 1px solid var(--cyan);
+            color: #fff; padding: 10px 12px; border-radius: 5px;
+            font-size: 0.85rem; max-width: 240px; line-height: 1.5;
+            box-shadow: 0 0 16px rgba(0,229,255,0.2);
+            opacity: 0; transition: opacity 0.1s;
+        }
+        #tooltip.visible { opacity: 1; }
+
+        /* 스크롤바 공통 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- ─── 인증 화면 ─── -->
+<div id="authSection" class="ui-layer">
+    <div class="auth-card">
+        <h1>[ 탐정 사무소 ]</h1>
+        <input id="emailInput" type="email" placeholder="요원 이메일" />
+        <input id="passwordInput" type="password" placeholder="비밀번호 (6자리 이상)" />
+        <div class="auth-row">
+            <button id="loginBtn" class="btn btn-red">로그인</button>
+            <button id="signupBtn" class="btn btn-green">신규 등록</button>
+        </div>
+        <p class="auth-notice">처음 오신 분은 신규 등록을,<br>기존 요원은 로그인하세요.</p>
+    </div>
+</div>
+
+<!-- ─── 로비 화면 ─── -->
+<div id="lobbySection" class="ui-layer hidden">
+    <div class="lobby-title">취조실</div>
+    <p class="lobby-sub">증거를 모으고, 논리적 모순을 찔러 자백을 받아내세요.<br>단, 용의자가 진짜 범인이 아닐 수도 있습니다.</p>
+    <p class="lobby-user">로그인: <span id="userEmail"></span></p>
+    <div class="lobby-btns">
+        <button id="start-btn" class="btn btn-green">새 사건 배당받기</button>
+        <button id="logoutBtn" class="btn btn-red">로그아웃</button>
+    </div>
+</div>
+
+<!-- ─── 게임 UI ─── -->
+<div id="game-ui" class="hidden">
+    <!-- 좌측 -->
+    <div id="left-panel">
+        <div id="case-brief">
+            <h3>[ 사건 브리핑 ]</h3>
+            <div id="brief-text">사건을 생성하는 중입니다...</div>
+        </div>
+        <div id="chat-section">
+            <div id="chat-log"></div>
+            <div id="input-area">
+                <input type="text" id="user-input"
+                    placeholder="질문하거나 [증거제시] 버튼을 활용하세요"
+                    onkeypress="if(event.keyCode==13) window.sendQuestion()">
+                <button id="send-btn" onclick="window.sendQuestion()">압박</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 우측 -->
+    <div id="right-panel">
+        <button id="exit-game-btn">심문 포기</button>
+        <div id="mental-gauge">
+            <label>용의자 멘탈</label>
+            <div id="mental-pips"></div>
+        </div>
+        <div id="evidence-board">
+            <h3>[ 증거물 보드 ]</h3>
+            <ul id="evidence-list"></ul>
+        </div>
+    </div>
+
+    <!-- 툴팁 -->
+    <div id="tooltip"></div>
+</div>
+
+<!-- ─── Three.js 캔버스 ─── -->
+<div id="canvas-container"></div>
+
+<script type="module">
+    import { initializeApp }                              from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword,
+             signInWithEmailAndPassword, signOut,
+             onAuthStateChanged }                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getDatabase, ref, push, set }              from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+    /* ══════════════════════════════════════════
+       설정값 — 본인 값으로 교체하세요
+    ══════════════════════════════════════════ */
+    const APPS_SCRIPT_URL = "";   // ← Google Apps Script 웹앱 URL
+
+    const firebaseConfig = {
+        apiKey:            "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8",
+        authDomain:        "fdfdfdf-62a41.firebaseapp.com",
+        databaseURL:       "https://fdfdfdf-62a41-default-rtdb.firebaseio.com",
+        projectId:         "fdfdfdf-62a41",
+        storageBucket:     "fdfdfdf-62a41.firebasestorage.app",
+        messagingSenderId: "466219617276",
+        appId:             "1:466219617276:web:1d0f86923ed2588cd84079",
+    };
+    /* ══════════════════════════════════════════ */
+
+    const app      = initializeApp(firebaseConfig);
+    const auth     = getAuth(app);
+    const database = getDatabase(app);
+    let currentUser = null;
+
+    /* ── 상태 변수 ── */
+    let chatHistory   = [];
+    let evidenceArray = [];
+    let suspectLife   = 3;
+    let suspectMesh;
+
+    /* ── DOM ── */
+    const authSection    = document.getElementById('authSection');
+    const lobbySection   = document.getElementById('lobbySection');
+    const gameUI         = document.getElementById('game-ui');
+    const emailInput     = document.getElementById('emailInput');
+    const passwordInput  = document.getElementById('passwordInput');
+    const chatLogEl      = document.getElementById('chat-log');
+    const userInputEl    = document.getElementById('user-input');
+    const briefTextEl    = document.getElementById('brief-text');
+    const evidenceListEl = document.getElementById('evidence-list');
+    const tooltipEl      = document.getElementById('tooltip');
+    const mentalPipsEl   = document.getElementById('mental-pips');
+
+    /* ══════════════════════════════════════════
+       인증
+    ══════════════════════════════════════════ */
+    function getCredentials() {
+        const e = emailInput.value.trim(), p = passwordInput.value.trim();
+        if (!e || !p) { alert('이메일과 비밀번호를 입력하세요.'); return null; }
+        if (p.length < 6) { alert('비밀번호는 6자리 이상이어야 합니다.'); return null; }
+        return { email: e, password: p };
+    }
+
+    document.getElementById('signupBtn').addEventListener('click', async () => {
+        const c = getCredentials();
+        if (c) try { await createUserWithEmailAndPassword(auth, c.email, c.password); alert('가입 완료!'); }
+              catch (e) { alert(e.code); }
+    });
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const c = getCredentials();
+        if (c) try { await signInWithEmailAndPassword(auth, c.email, c.password); }
+              catch (e) { alert(e.code); }
+    });
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await signOut(auth); exitGame();
+    });
+    passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+
+    onAuthStateChanged(auth, user => {
+        currentUser = user || null;
+        authSection.classList.toggle('hidden', !!user);
+        lobbySection.classList.toggle('hidden', !user);
+        if (user) document.getElementById('userEmail').textContent = user.email;
+        else { gameUI.classList.add('hidden'); lobbySection.classList.add('hidden'); }
+    });
+
+    /* ══════════════════════════════════════════
+       Three.js 씬
+    ══════════════════════════════════════════ */
+    const container = document.getElementById('canvas-container');
+    const scene     = new THREE.Scene();
+    scene.background = new THREE.Color(0x050505);
+    scene.fog        = new THREE.FogExp2(0x050505, 0.14);
+
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+    camera.position.set(0, 1.6, 2.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // 바닥
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(12, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 })
+    );
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+    // 벽
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), wallMat);
+    backWall.position.set(0, 3, -4); scene.add(backWall);
+
+    // 테이블
+    const table = new THREE.Mesh(
+        new THREE.BoxGeometry(1.8, 0.06, 1.0),
+        new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.4 })
+    );
+    table.position.set(0, 0.76, 0.8); table.castShadow = true; table.receiveShadow = true; scene.add(table);
+
+    // 다리
+    [[-0.82,0.72],[ 0.82,0.72],[-0.82,0.30],[ 0.82,0.30]].forEach(([x,z]) => {
+        const leg = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.76),
+            new THREE.MeshStandardMaterial({ color: 0x0a0a0a })
+        );
+        leg.position.set(x, 0.38, z); scene.add(leg);
+    });
+
+    // 용의자 캐릭터
+    const sGroup = new THREE.Group();
+    const bodyM  = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.22, 0.65, 16),
+        new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 })
+    );
+    bodyM.position.y = 0.32; bodyM.castShadow = true; sGroup.add(bodyM);
+    const headM  = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0xd4a882, roughness: 0.6 })
+    );
+    headM.position.y = 0.74; headM.castShadow = true; sGroup.add(headM);
+    sGroup.position.set(0, 0.5, 0); scene.add(sGroup);
+    suspectMesh = sGroup;
+
+    // 조명
+    const spot = new THREE.SpotLight(0xffffff, 2.5);
+    spot.position.set(0, 3.5, 1); spot.angle = Math.PI / 5;
+    spot.penumbra = 0.6; spot.castShadow = true; scene.add(spot);
+    const ambient = new THREE.AmbientLight(0x0a0a0a); scene.add(ambient);
+    const redFill = new THREE.PointLight(0xff2200, 0.4, 5);
+    redFill.position.set(-2, 1.5, 1); scene.add(redFill);
+
+    function animate(t) {
+        requestAnimationFrame(animate);
+        if (suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(t * 0.002) * 0.012;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+
+    /* ══════════════════════════════════════════
+       멘탈 게이지 UI
+    ══════════════════════════════════════════ */
+    function renderMental() {
+        mentalPipsEl.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const pip = document.createElement('div');
+            pip.className = 'pip' + (i < suspectLife ? '' : ' empty');
+            mentalPipsEl.appendChild(pip);
+        }
+    }
+
+    /* ══════════════════════════════════════════
+       증거 UI
+    ══════════════════════════════════════════ */
+    function updateEvidenceUI() {
+        evidenceListEl.innerHTML = '';
+        if (evidenceArray.length === 0) {
+            evidenceListEl.innerHTML = '<li style="color:var(--dim);cursor:default;border:none;background:none;">아직 증거 없음</li>';
+            return;
+        }
+        evidenceArray.forEach(ev => {
+            const li = document.createElement('li');
+            li.textContent = ev.name;
+            li.addEventListener('mousemove', e => {
+                tooltipEl.innerHTML = `<strong>${ev.name}</strong><br><span style="color:#999">${ev.desc}</span>`;
+                tooltipEl.style.left = (e.pageX - 260) + 'px';
+                tooltipEl.style.top  = (e.pageY + 12)  + 'px';
+                tooltipEl.classList.add('visible');
+            });
+            li.addEventListener('mouseleave', () => tooltipEl.classList.remove('visible'));
+            li.addEventListener('click', () => {
+                userInputEl.value = `[증거제시:${ev.name}] `;
+                userInputEl.focus();
+            });
+            evidenceListEl.appendChild(li);
+        });
+    }
+
+    /* ══════════════════════════════════════════
+       로그 출력
+    ══════════════════════════════════════════ */
+    function addLog(type, text) {
+        const div = document.createElement('div');
+        if (type === 'detective') { div.className = 'msg-detective'; div.textContent = text; }
+        else if (type === 'suspect') { div.className = 'msg-suspect'; div.textContent = text; }
+        else { div.className = 'msg-system'; div.textContent = text; }
+        chatLogEl.appendChild(div);
+        chatLogEl.scrollTop = chatLogEl.scrollHeight;
+    }
+
+    /* ══════════════════════════════════════════
+       Firebase 로그 저장
+    ══════════════════════════════════════════ */
+    async function saveLog(q, a) {
+        if (!currentUser) return;
+        try {
+            const r = ref(database, `users/${currentUser.uid}/logs`);
+            await set(push(r), { ts: new Date().toLocaleString('ko-KR'), q, a });
+        } catch(e) { console.error('DB 저장 실패', e); }
+    }
+
+    /* ══════════════════════════════════════════
+       TTS
+    ══════════════════════════════════════════ */
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ko-KR'; u.pitch = 0.8; u.rate = 1.0;
+        window.speechSynthesis.speak(u);
+    }
+
+    /* ══════════════════════════════════════════
+       게임 초기화
+    ══════════════════════════════════════════ */
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    document.getElementById('exit-game-btn').addEventListener('click', exitGame);
+
+    async function initGame() {
+        if (!APPS_SCRIPT_URL) {
+            alert('APPS_SCRIPT_URL을 설정하세요!'); return;
+        }
+
+        lobbySection.classList.add('hidden');
+        gameUI.classList.remove('hidden');
+        chatLogEl.innerHTML = '';
+        evidenceArray = [];
+        suspectLife   = 3;
+        window._fullTruth = null;
+        window._isGuilty  = null;
+        updateEvidenceUI();
+        renderMental();
+        briefTextEl.innerHTML = '<span style="color:var(--dim)">사건 파일 수신 중...</span>';
+
+        const isGuilty = Math.random() > 0.5;
+
+        const prompt = `당신은 추리 게임 마스터입니다. 아래 조건에 맞는 범죄 사건을 생성하고, 반드시 아래 JSON 형식으로만 응답하세요.
+
+[조건]
+- 용의자의 유죄 여부: ${isGuilty ? '유죄 (이 용의자가 실제 범인)' : '무죄 (이 용의자는 범인이 아니며, 진짜 범인은 따로 있음)'}
+- 매번 완전히 새로운 유형의 범죄 (미술품 도난, 밀실 살인, 기업 해킹, 납치, 방화, 횡령, 사기, 위조, 협박 등 무작위)
+- 사건의 전체 내막, 범행 동기, 구체적 실행 방법, 도주·은폐 방법까지 빠짐없이 설계할 것
+
+{
+  "brief": "탐정에게 공개되는 사건 개요 (시간, 장소, 피해 내용만. 내막 절대 노출 금지)",
+  "suspect_name": "용의자 이름 (한국식 이름)",
+  "relationship": "용의자와 피해자 또는 사건의 관계",
+  "is_guilty": ${isGuilty},
+  "full_truth": "사건의 완전한 진실. 유죄라면: 범행 동기, 구체적 실행 방법 단계별, 증거 은폐 방법, 알리바이 조작 방법, 핵심 모순점 2~3개. 무죄라면: 진짜 범인이 누구인지와 동기, 왜 이 용의자가 억울하게 의심받는지, 이 용의자의 진짜 알리바이와 그것을 숨기는 이유(예: 불륜, 다른 범죄 은폐, 수치스러운 비밀 등)",
+  "suspect_persona": "용의자의 성격·말투 지침. 유죄라면 어떤 방식으로 거짓말하고 어떤 상황에서 흔들리는지. 무죄라면 왜 진실을 전부 털어놓지 못하는지와 억울함을 표현하는 방식",
+  "initial_evidence": [
+    {"name": "증거명1", "desc": "이 증거의 구체적 내용, 발견 경위, 사건과의 연관성"},
+    {"name": "증거명2", "desc": "이 증거의 구체적 내용, 발견 경위, 사건과의 연관성"},
+    {"name": "증거명3", "desc": "이 증거의 구체적 내용, 발견 경위, 사건과의 연관성"}
+  ],
+  "obtainable_evidence": [
+    {"name": "획득가능증거1", "trigger": "이 증거가 드러나는 조건 (예: 알리바이의 시간대를 구체적으로 추궁할 때)", "desc": "증거의 구체적 내용"},
+    {"name": "획득가능증거2", "trigger": "이 증거가 드러나는 조건", "desc": "증거의 구체적 내용"},
+    {"name": "획득가능증거3", "trigger": "이 증거가 드러나는 조건", "desc": "증거의 구체적 내용"}
+  ]
+}`;
+
+        try {
+            const res  = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    model: "gpt-4o-mini",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" }
+                })
+            });
+            const raw  = await res.json();
+            const game = JSON.parse(raw.choices[0].message.content);
+
+            // 디버그용 전역 저장
+            window._fullTruth = game.full_truth;
+            window._isGuilty  = game.is_guilty;
+
+            briefTextEl.innerHTML = `
+                <strong style="color:#fff">${game.suspect_name}</strong><br>
+                <span class="relationship-tag">${game.relationship}</span><br><br>
+                <span>${game.brief}</span>
+            `;
+
+            evidenceArray = game.initial_evidence || [];
+            updateEvidenceUI();
+
+            // obtainable_evidence 힌트 정리
+            const obtainableHint = (game.obtainable_evidence || [])
+                .map(e => `- [${e.name}] 조건: ${e.trigger} / 내용: ${e.desc}`)
+                .join('\n');
+
+            const systemPrompt = `너는 취조실에 잡혀온 용의자 '${game.suspect_name}'이다. 피해자·사건과의 관계: '${game.relationship}'.
+
+[사건의 진실 — 너만 아는 정보]
+${game.full_truth}
+
+[페르소나 및 행동 지침]
+${game.suspect_persona}
+
+[대화 중 흘릴 수 있는 증거 — 조건 충족 시 자연스럽게 실수하거나 언급해라]
+${obtainableHint}
+
+[역전재판 시스템 규칙 — 절대 엄수]
+1. 탐정이 '[증거제시:증거명] 반박 논리' 형태로 추궁할 것이다.
+2. 증거와 논리가 너의 거짓말·알리바이의 핵심 모순을 정확히 찌른다면 → 답변 맨 앞에 '[크리티컬]' 태그. 심하게 당황하되 아직 자백하지 말고 억지 변명을 이어가라.
+3. 증거가 엉뚱하거나 논리에 빈틈이 있다면 → 답변 맨 앞에 '[방어]' 태그. 여유롭게 빠져나가라.
+4. 대화 흐름상 위 목록의 조건이 충족되면 → 답변 안 적절한 위치에 '[증거획득:증거명|증거설명]' 태그를 삽입해라.
+5. 답변은 2~3문장 이내, 용의자 시점 반말.`;
+
+            chatHistory = [{ role: "system", content: systemPrompt }];
+            addLog('system', `▶ 용의자 [${game.suspect_name}] 입실. 증거를 클릭해 반박에 활용하세요.`);
+            addLog('system', `  (디버그: /debug/ 로 명령어 목록 확인)`);
+
+        } catch (err) {
+            console.error(err);
+            briefTextEl.innerHTML = '<span style="color:var(--red)">사건 생성 실패. Apps Script 연결을 확인하세요.</span>';
+        }
+    }
+
+    /* ══════════════════════════════════════════
+       게임 종료
+    ══════════════════════════════════════════ */
+    function exitGame() {
+        gameUI.classList.add('hidden');
+        lobbySection.classList.remove('hidden');
+        tooltipEl.classList.remove('visible');
+        window.speechSynthesis.cancel();
+    }
+
+    /* ══════════════════════════════════════════
+       질문 전송
+    ══════════════════════════════════════════ */
+    window.sendQuestion = async function () {
+        const question = userInputEl.value.trim();
+        if (!question) return;
+
+        /* ── 디버그 명령어 ── */
+        if (question.startsWith('/debug/')) {
+            userInputEl.value = '';
+
+            if (question === '/debug/') {
+                addLog('system', '🛠 [디버그 명령어 목록]');
+                addLog('system', '  /debug/truth    — 사건의 진짜 내막 및 유/무죄 출력');
+                addLog('system', '  /debug/status   — 현재 멘탈·증거 상태 출력');
+                addLog('system', '  /debug/hit      — 강제로 크리티컬 1회 적용');
+                addLog('system', '  /debug/evidence — 가짜 증거 1개 추가');
+                return;
+            }
+
+            if (question === '/debug/truth') {
+                if (!window._fullTruth) { addLog('system', '⚠ 사건이 아직 생성되지 않았습니다.'); return; }
+                addLog('system', `🔍 [사건 진실]`);
+                addLog('system', `  유죄 여부: ${window._isGuilty ? '✅ 유죄 — 이 용의자가 범인' : '❌ 무죄 — 이 용의자는 억울함'}`);
+                addLog('system', `  전체 내막: ${window._fullTruth}`);
+                return;
+            }
+
+            if (question === '/debug/status') {
+                addLog('system', `🛠 [상태] 멘탈: ${suspectLife}/3 | 증거: ${evidenceArray.map(e => e.name).join(', ') || '없음'} | 대화: ${chatHistory.length - 1}회`);
+                return;
+            }
+
+            if (question === '/debug/hit') {
+                suspectLife = Math.max(0, suspectLife - 1);
+                renderMental();
+                addLog('system', `🛠 강제 타격 적용. 남은 멘탈: ${suspectLife}/3`);
+                suspectMesh.scale.set(1.2, 1.2, 1.2);
+                setTimeout(() => suspectMesh.scale.set(1, 1, 1), 300);
+                if (suspectLife <= 0) setTimeout(() => { alert('🎉 BREAK! [디버그 강제 클리어]'); exitGame(); }, 500);
+                return;
+            }
+
+            if (question === '/debug/evidence') {
+                evidenceArray.push({ name: '디버그 증거', desc: '강제로 추가된 테스트용 증거입니다.' });
+                updateEvidenceUI();
+                addLog('system', '🛠 디버그 증거를 보드에 추가했습니다.');
+                return;
+            }
+
+            addLog('system', '⚠ 알 수 없는 명령어입니다. /debug/ 로 목록을 확인하세요.');
+            return;
+        }
+
+        /* ── 일반 대화 ── */
+        userInputEl.value = '';
+        addLog('detective', question);
+        chatHistory.push({ role: "user", content: question });
+        suspectMesh.scale.set(1.06, 1.06, 1.06);
+
+        try {
+            const res  = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ model: "gpt-4o-mini", messages: chatHistory })
+            });
+            const data = await res.json();
+            let answer = data.choices[0].message.content;
+            chatHistory.push({ role: "assistant", content: answer });
+
+            /* 태그 처리 */
+            if (answer.includes('[크리티컬]')) {
+                suspectLife = Math.max(0, suspectLife - 1);
+                renderMental();
+                addLog('system', `💥 결정적 모순 적중! 남은 멘탈: ${suspectLife}/3`);
+                suspectMesh.scale.set(1.25, 1.25, 1.25);
+            } else if (answer.includes('[방어]')) {
+                addLog('system', '🛡 용의자가 허점을 짚어내며 빠져나갔습니다.');
+            }
+
+            const evRegex = /\[증거획득:(.*?)\|(.*?)\]/g;
+            let match; let newEv = false;
+            while ((match = evRegex.exec(answer)) !== null) {
+                const [, name, desc] = match;
+                if (!evidenceArray.some(e => e.name === name.trim())) {
+                    evidenceArray.push({ name: name.trim(), desc: desc.trim() });
+                    newEv = true;
+                }
+            }
+            if (newEv) { updateEvidenceUI(); addLog('system', '💡 새 증거를 확보했습니다! (우측 보드 확인)'); }
+
+            const display = answer
+                .replace(/\[크리티컬\]/g, '')
+                .replace(/\[방어\]/g, '')
+                .replace(/\[증거획득:.*?\|.*?\]/g, '')
+                .trim();
+
+            setTimeout(() => suspectMesh.scale.set(1, 1, 1), 300);
+            addLog('suspect', display);
+            speak(display);
+            saveLog(question, display);
+
+            if (suspectLife <= 0) {
+                setTimeout(() => {
+                    alert('🎉 BREAK!\n용의자의 멘탈이 완전히 무너졌습니다.\n사건이 종결됩니다.');
+                    exitGame();
+                }, 500);
+            }
+
+        } catch (err) {
+            console.error(err);
+            addLog('system', '⚠ 통신 오류가 발생했습니다.');
+            suspectMesh.scale.set(1, 1, 1);
+        }
+    };
+</script>
+</body>
+</html>
