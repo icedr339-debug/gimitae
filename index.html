@@ -716,7 +716,9 @@ ${obtainableHint}
                 addLog('system', `💥 결정적 모순 적중! 남은 멘탈: ${suspectLife}/3`);
                 suspectMesh.scale.set(1.25, 1.25, 1.25);
             } else if (answer.includes('[방어]')) {
-                suspectLife = Math.max(0, suspectLife + 1);
+                if (suspectLife < 3){
+                    suspectLife = Math.max(0, suspectLife + 1);
+                }
                 addLog('system', '🛡 용의자가 허점을 짚어내며 빠져나갔습니다.');
             }
 
