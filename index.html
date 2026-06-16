@@ -39,18 +39,24 @@
         #case-brief { margin: 20px; padding: 15px; background: rgba(0, 0, 0, 0.75); border: 1px solid #ff3333; border-radius: 5px; max-width: 400px; pointer-events: auto; max-height: 250px; overflow-y: auto; }
         #case-brief h3 { margin-top: 0; color: #ff3333; }
         
-        /* 획득 증거품 UI 추가 */
-        #evidence-board { position: absolute; top: 80px; right: 20px; background: rgba(0, 0, 0, 0.8); border: 1px solid #00e5ff; border-radius: 5px; padding: 15px; width: 200px; pointer-events: auto; }
-        #evidence-board h3 { margin-top: 0; color: #00e5ff; font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        /* 증거품 보드 UI */
+        #evidence-board { position: absolute; top: 80px; right: 20px; background: rgba(0, 0, 0, 0.85); border: 2px solid #00e5ff; border-radius: 8px; padding: 15px; width: 220px; pointer-events: auto; max-height: 50vh; overflow-y: auto; }
+        #evidence-board h3 { margin-top: 0; color: #00e5ff; font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: center; }
         #evidence-list { list-style: none; padding: 0; margin: 0; color: #ccc; font-size: 0.95rem; }
-        #evidence-list li { margin-bottom: 8px; padding-left: 15px; position: relative; }
-        #evidence-list li::before { content: '📁'; position: absolute; left: 0; font-size: 0.8rem; }
+        #evidence-list li { margin-bottom: 10px; padding: 8px 8px 8px 25px; position: relative; background: #1a1a1a; border-radius: 4px; cursor: pointer; border: 1px solid #333; transition: 0.2s; }
+        #evidence-list li::before { content: '📁'; position: absolute; left: 5px; font-size: 0.9rem; }
+        #evidence-list li:hover { border-color: #00e5ff; color: #fff; background: #222; }
         
+        /* 툴팁 UI */
+        #tooltip { position: absolute; background: rgba(20, 20, 20, 0.95); border: 1px solid #00e5ff; color: #fff; padding: 10px; border-radius: 5px; pointer-events: none; font-size: 0.9rem; max-width: 250px; z-index: 100; box-shadow: 0 0 10px rgba(0, 229, 255, 0.3); opacity: 0; transition: opacity 0.1s; }
+        #tooltip.visible { opacity: 1; }
+
         #chat-section { margin: 20px; padding: 15px; background: rgba(0, 0, 0, 0.8); border: 1px solid #33ff33; border-radius: 5px; width: calc(100% - 70px); max-width: 800px; align-self: center; pointer-events: auto; }
         #chat-log { height: 180px; overflow-y: auto; margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #333; font-size: 1.1rem; line-height: 1.5; }
         .msg { margin-bottom: 8px; }
         .detective { color: #33ff33; font-weight: bold; }
         .suspect { color: #ff9900; font-weight: bold; }
+        .critical-msg { color: #ff3333; font-weight: bold; font-style: italic; }
         
         #input-area { display: flex; gap: 10px; }
         #user-input { flex: 1; padding: 12px; background: #111; border: 1px solid #33ff33; color: #fff; border-radius: 3px; font-size: 1rem; }
@@ -78,13 +84,13 @@
     <div id="lobbySection" class="ui-layer hidden">
         <h1>취조실 (The Interview)</h1>
         <div id="user-info-display">로그인 됨: <span id="userEmail" style="color: #fff;"></span></div>
-        <p>매 판마다 새로운 사건의 용의자를 압박하고 자백을 받아내세요.</p>
+        <p>증거를 모으고, 결정적인 순간에 논리적 모순을 찔러 자백을 받아내세요.</p>
         <button id="start-btn" class="action-btn">새 사건 배당받기</button>
         <button id="logoutBtn" class="action-btn logout-btn">로그아웃</button>
     </div>
 
     <div id="game-ui" class="hidden">
-        <button id="exit-game-btn">심문 포기 (로비로)</button>
+        <button id="exit-game-btn">심문 포기</button>
         
         <div id="case-brief">
             <h3>[사건 브리핑]</h3>
@@ -92,16 +98,16 @@
         </div>
         
         <div id="evidence-board">
-            <h3>획득한 증거품</h3>
-            <ul id="evidence-list">
-                <li style="color:#555;">아직 발견된 증거가 없습니다.</li>
-            </ul>
+            <h3>수집된 증거물</h3>
+            <ul id="evidence-list"></ul>
         </div>
+        
+        <div id="tooltip"></div>
 
         <div id="chat-section">
             <div id="chat-log"></div>
             <div id="input-area">
-                <input type="text" id="user-input" placeholder="용의자에게 질문을 던지세요..." onkeypress="if(event.keyCode==13) window.sendQuestion()">
+                <input type="text" id="user-input" placeholder="증거를 클릭하여 제시하거나 자유롭게 질문하세요..." onkeypress="if(event.keyCode==13) window.sendQuestion()">
                 <button id="send-btn" onclick="window.sendQuestion()">압박하기</button>
             </div>
         </div>
@@ -114,9 +120,8 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
         import { getDatabase, ref, push, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
-        // [1] Firebase 초기화
         const firebaseConfig = {
-            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8", // 본인의 Firebase API 키
+            apiKey: "AIzaSyDMxp6Yu16PCYDNiMQJvb97aFn7QHdIPw8",
             authDomain: "fdfdfdf-62a41.firebaseapp.com",
             databaseURL: "https://fdfdfdf-62a41-default-rtdb.firebaseio.com",
             projectId: "fdfdfdf-62a41",
@@ -131,16 +136,14 @@
         const database = getDatabase(app);
         let currentUser = null;
 
-        // [2] Apps Script 연동
         // ★여기에 본인의 Google Apps Script 웹앱 URL을 입력하세요★
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUbYSYPw0bOL6az6NqVDgtl4H-6Pl9_5HlSXsArOhuzZlCXw6j7G2_0e-kuzU8Rx-A/exec"; 
         
-        let currentSuspectPersona = "";
         let chatHistory = [];
         let suspectMesh; 
-        let evidenceArray = []; // 획득한 증거품 배열
+        let evidenceArray = []; // 증거 객체 배열 {name: "", desc: ""}
+        let suspectLife = 3; // ★ 용의자 멘탈(라이프)
 
-        // UI 캐싱
         const authSection = document.getElementById('authSection');
         const lobbySection = document.getElementById('lobbySection');
         const gameUI = document.getElementById('game-ui');
@@ -156,25 +159,16 @@
         const userInputEl = document.getElementById('user-input');
         const briefTextEl = document.getElementById('brief-text');
         const evidenceListEl = document.getElementById('evidence-list');
+        const tooltipEl = document.getElementById('tooltip');
 
-        // [3] 인증 로직 (생략 - 기존과 동일)
-        function getEmailAndPassword() {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value.trim();
-            if (!email || !password) { alert('이메일과 비밀번호를 입력해주세요.'); return null; }
-            if (password.length < 6) { alert('비밀번호는 6자리 이상이어야 합니다.'); return null; }
-            return { email, password };
-        }
-        signupBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await createUserWithEmailAndPassword(auth, acc.email, acc.password); alert('요원 등록 완료!'); }catch(e){ alert(`오류 발생: ${e.code}`); }});
-        loginBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await signInWithEmailAndPassword(auth, acc.email, acc.password); }catch(e){ alert(`로그인 실패: ${e.code}`); }});
+        // [인증 및 Three.js 설정 부분은 이전과 동일하게 유지 (스크롤 압박으로 로직만 요약 결합)]
+        function getEmailAndPassword() { const e = emailInput.value.trim(), p = passwordInput.value.trim(); if (!e || !p) return alert('입력 필요'), null; if (p.length < 6) return alert('6자리 이상'), null; return { email:e, password:p }; }
+        signupBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await createUserWithEmailAndPassword(auth, acc.email, acc.password); alert('가입 완료'); }catch(e){ alert(e.code); }});
+        loginBtn.addEventListener('click', async () => { const acc = getEmailAndPassword(); if(acc) try{ await signInWithEmailAndPassword(auth, acc.email, acc.password); }catch(e){ alert(e.code); }});
         logoutBtn.addEventListener('click', async () => { await signOut(auth); exitGame(); });
         document.getElementById('passwordInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
-        onAuthStateChanged(auth, (user) => {
-            if (user) { currentUser = user; authSection.classList.add('hidden'); lobbySection.classList.remove('hidden'); userEmailSpan.textContent = user.email; }
-            else { currentUser = null; authSection.classList.remove('hidden'); lobbySection.classList.add('hidden'); gameUI.classList.add('hidden'); }
-        });
+        onAuthStateChanged(auth, (user) => { if (user) { currentUser = user; authSection.classList.add('hidden'); lobbySection.classList.remove('hidden'); userEmailSpan.textContent = user.email; } else { currentUser = null; authSection.classList.remove('hidden'); lobbySection.classList.add('hidden'); gameUI.classList.add('hidden'); }});
 
-        // [4] Three.js 3D (생략 - 기존과 동일)
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050505); scene.fog = new THREE.FogExp2(0x050505, 0.15);
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.set(0, 1.6, 2.5);
@@ -186,19 +180,41 @@
         function animate(time) { requestAnimationFrame(animate); if(suspectMesh) suspectMesh.position.y = 0.5 + Math.sin(time * 0.003) * 0.01; renderer.render(scene, camera); } animate();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
-        // [5] 게임 코어 로직 (증거 수집 및 자백 시스템 추가)
+        // ---------------------------------------------------------
+        // 게임 진행 및 역전재판 시스템 로직
+        // ---------------------------------------------------------
         startBtn.addEventListener('click', initGame);
         exitGameBtn.addEventListener('click', exitGame);
 
+        // 증거품 보드 업데이트 및 이벤트 바인딩
         function updateEvidenceUI() {
             evidenceListEl.innerHTML = '';
             if (evidenceArray.length === 0) {
-                evidenceListEl.innerHTML = '<li style="color:#555;">아직 발견된 증거가 없습니다.</li>';
+                evidenceListEl.innerHTML = '<li style="color:#555; cursor:default;">증거가 없습니다.</li>';
                 return;
             }
             evidenceArray.forEach(ev => {
                 const li = document.createElement('li');
-                li.textContent = ev;
+                li.textContent = ev.name;
+                
+                // 마우스 오버 시 툴팁 표시
+                li.addEventListener('mousemove', (e) => {
+                    tooltipEl.innerHTML = `<strong>${ev.name}</strong><br><span style="color:#aaa;">${ev.desc}</span>`;
+                    tooltipEl.style.left = (e.pageX - 270) + 'px'; // 커서 좌측에 표시
+                    tooltipEl.style.top = (e.pageY + 10) + 'px';
+                    tooltipEl.classList.add('visible');
+                });
+                
+                li.addEventListener('mouseleave', () => {
+                    tooltipEl.classList.remove('visible');
+                });
+
+                // 클릭 시 입력창에 태그 삽입
+                li.addEventListener('click', () => {
+                    userInputEl.value = `[증거제시:${ev.name}] `;
+                    userInputEl.focus();
+                });
+
                 evidenceListEl.appendChild(li);
             });
         }
@@ -211,15 +227,21 @@
             lobbySection.classList.add('hidden');
             gameUI.classList.remove('hidden');
             chatLogEl.innerHTML = '';
-            evidenceArray = []; // 증거 초기화
+            evidenceArray = []; 
+            suspectLife = 3; // 라이프 초기화
             updateEvidenceUI();
             briefTextEl.innerText = "상부에서 새로운 사건 파일을 전송 중입니다...";
 
-            const prompt = `당신은 추리 게임 마스터입니다. 무작위 범죄 사건을 만들고, 반드시 아래 JSON 형식으로만 응답하세요.
+            // ★ 프롬프트 고도화: 다양한 범죄, 초기 증거품 배열, 역전재판 룰 명시 ★
+            const prompt = `당신은 추리 게임 마스터입니다. 매번 '독살'이 아닌 완전히 새로운 유형의 범죄 사건(예: 미술품 도난, 밀실 살인, 기업 해킹, 납치, 방화, 횡령, 사기 등)을 무작위로 생성하고, 반드시 아래 JSON 형식으로 응답하세요.
             {
                 "brief": "사건 개요 (시간, 장소, 내용, 피해자)",
                 "suspect_name": "용의자 이름",
-                "suspect_persona": "용의자의 성격, 알리바이, 거짓말하는 부분, 어떤 증거를 대면 무너질지 상세 지침"
+                "suspect_persona": "용의자의 성격, 진짜 범행 동기, 알리바이, 거짓말의 핵심 모순점 등 상세 지침",
+                "initial_evidence": [
+                    {"name": "증거명1", "desc": "해당 증거의 상세 내용 및 특징"},
+                    {"name": "증거명2", "desc": "해당 증거의 상세 내용 및 특징"}
+                ]
             }`;
 
             try {
@@ -233,14 +255,22 @@
 
                 briefTextEl.innerHTML = `<strong>용의자:</strong> ${gameData.suspect_name}<br><br>${gameData.brief}`;
                 
-                // ★ 시스템 프롬프트 업데이트: 자백 및 증거 획득 태그 지시 ★
-                currentSuspectPersona = `너는 취조실에 잡혀온 용의자 '${gameData.suspect_name}'이다. 페르소나: ${gameData.suspect_persona}. 탐정의 질문에 용의자 시점에서 반말로 억울하거나 당황한 듯 대답해. 대답은 2~3문장 이내. 
-                [핵심 규칙] 
-                1. 만약 탐정의 날카로운 질문이나 논리에 모순이 드러나 범행을 시인해야만 하는 상황이 되면, 반드시 답변 제일 앞에 '[자백]' 이라고 적고 범행을 인정해라. 
-                2. 대화 도중 용의자의 실수나 탐정의 유도신문으로 새로운 단서(예: 흉기, 영수증, 알리바이 불일치 증명 등)가 맥락상 드러났다면, 답변 아무 곳에나 '[증거획득:증거품이름]' 형식으로 태그를 달아라. (예: '[증거획득:피 묻은 셔츠]')`;
+                // 초기 증거 세팅
+                if(gameData.initial_evidence) {
+                    evidenceArray = gameData.initial_evidence;
+                    updateEvidenceUI();
+                }
+
+                // AI 페르소나 및 게임 룰 설정
+                const systemPersona = `너는 취조실에 잡혀온 용의자 '${gameData.suspect_name}'이다. 페르소나: ${gameData.suspect_persona}. 대답은 2~3문장 이내로, 용의자 시점에서 반말로 해라.
+                [역전재판 시스템 규칙 - 절대 엄수]
+                1. 탐정이 채팅으로 '[증거제시:증거명] 반박내용' 형태로 널 추궁할 것이다.
+                2. 만약 탐정의 '증거'와 '반박 논리'가 너의 거짓말이나 알리바이의 모순을 정확히 찌른다면, 답변 제일 앞에 반드시 '[크리티컬]' 태그를 달고 심하게 당황하며 식은땀을 흘리는 연기를 해라. 아직 전부 자백하지 말고 억지 변명을 이어가라.
+                3. 제시한 증거가 엉뚱하거나 논리에 빈틈이 있다면, 답변 제일 앞에 '[방어]' 태그를 달고 여유롭게 비웃으며 빠져나가라.
+                4. 대화 도중 너의 실수나 새로운 정황상 발견될 수 있는 새로운 단서가 언급된다면, 답변 아무 곳에나 '[증거획득:증거명|증거설명]' 형태로 태그를 달아라.`;
                 
-                chatHistory = [{ role: "system", content: currentSuspectPersona }];
-                addLog("system", `용의자 ${gameData.suspect_name}이(가) 입실했습니다. 심문을 시작하십시오.`);
+                chatHistory = [{ role: "system", content: systemPersona }];
+                addLog("system", `용의자 ${gameData.suspect_name}이(가) 입실했습니다. (우측 증거품을 클릭해 반박에 활용하세요)`);
             } catch (error) {
                 console.error(error);
                 briefTextEl.innerText = "사건 생성 실패. Apps Script 연결을 확인하세요.";
@@ -250,6 +280,7 @@
         function exitGame() {
             gameUI.classList.add('hidden');
             lobbySection.classList.remove('hidden');
+            tooltipEl.classList.remove('visible');
             window.speechSynthesis.cancel(); 
         }
 
@@ -271,47 +302,57 @@
 
                 const data = await response.json();
                 let answer = data.choices[0].message.content;
-                chatHistory.push({ role: "assistant", content: answer }); // AI 본래 답변은 역사에 원형대로 저장
+                chatHistory.push({ role: "assistant", content: answer });
                 
-                // ★ 1. 자백 태그 파싱 ★
-                let isConfessed = false;
-                if (answer.includes('[자백]')) {
-                    isConfessed = true;
-                    answer = answer.replace(/\[자백\]/g, '').trim(); // 화면 출력용에서는 태그 제거
+                let isCritical = false;
+                
+                // ★ 판정 파싱 ★
+                if (answer.includes('[크리티컬]')) {
+                    isCritical = true;
+                    suspectLife--;
+                    addLog("system", `💥 이의있음! 결정적인 모순을 찔렀습니다! (용의자 멘탈 손상)`);
+                    suspectMesh.scale.set(1.2, 1.2, 1.2); // 크게 움찔
+                } else if (answer.includes('[방어]')) {
+                    addLog("system", `🛡️ 용의자가 증거의 허점을 짚어내며 빠져나갔습니다.`);
                 }
 
-                // ★ 2. 증거 획득 태그 파싱 ★
-                const evidenceRegex = /\[증거획득:(.*?)\]/g;
+                // ★ 증거 획득 파싱 (포맷: [증거획득:이름|설명]) ★
+                const evidenceRegex = /\[증거획득:(.*?)\|(.*?)\]/g;
                 let match;
                 let foundNewEvidence = false;
                 while ((match = evidenceRegex.exec(answer)) !== null) {
-                    const evidenceName = match[1].trim();
-                    if (!evidenceArray.includes(evidenceName)) {
-                        evidenceArray.push(evidenceName);
+                    const evName = match[1].trim();
+                    const evDesc = match[2].trim();
+                    
+                    // 중복 체크
+                    if (!evidenceArray.some(e => e.name === evName)) {
+                        evidenceArray.push({ name: evName, desc: evDesc });
                         foundNewEvidence = true;
                     }
                 }
-                
                 if (foundNewEvidence) {
                     updateEvidenceUI();
-                    addLog("system", `💡 새로운 증거품을 획득했습니다! (우측 보드 확인)`);
+                    addLog("system", `💡 새로운 증거를 확보했습니다! (우측 보드 확인)`);
                 }
-                
-                // 화면 및 음성 출력용에서는 증거 태그도 깨끗하게 제거
-                let displayText = answer.replace(evidenceRegex, '').trim();
 
-                suspectMesh.scale.set(1, 1, 1); 
+                // 태그를 화면에서 감추기 위한 클렌징 작업
+                let displayText = answer
+                    .replace(/\[크리티컬\]/g, '')
+                    .replace(/\[방어\]/g, '')
+                    .replace(evidenceRegex, '')
+                    .trim();
+
+                setTimeout(() => suspectMesh.scale.set(1, 1, 1), 300); // 메쉬 원상복구
                 addLog("suspect", displayText);
-
                 speak(displayText);
                 saveLogToRealtimeDB(question, displayText); 
 
-                // 자백 시 게임 종료 처리
-                if (isConfessed) {
+                // ★ 라이프(멘탈) 0 도달 시 게임 클리어 처리 ★
+                if (suspectLife <= 0) {
                     setTimeout(() => {
-                        alert("🎉 완벽한 심문이었습니다! 용의자가 자백했습니다.\n사건이 종결됩니다.");
+                        alert("🎉 BREAK! 용의자의 멘탈이 완전히 붕괴되었습니다!\n사건의 전말을 자백받으며 사건이 종결됩니다.");
                         exitGame();
-                    }, 500); // 음성이 시작되고 약간의 시간차를 둔 후 팝업
+                    }, 500);
                 }
 
             } catch (error) {
@@ -333,7 +374,7 @@
             msgDiv.className = "msg";
             if(sender === "detective") msgDiv.innerHTML = `<span class="detective">나:</span> ${text}`;
             else if(sender === "suspect") msgDiv.innerHTML = `<span class="suspect">용의자:</span> ${text}`;
-            else msgDiv.innerHTML = `<i style="color:#00e5ff;">${text}</i>`;
+            else msgDiv.innerHTML = `<span style="color:#00e5ff; font-weight:bold; font-size:0.95rem;">${text}</span>`;
             
             chatLogEl.appendChild(msgDiv);
             chatLogEl.scrollTop = chatLogEl.scrollHeight;
@@ -345,9 +386,7 @@
                 const logsRef = ref(database, `users/${currentUser.uid}/interrogation_logs`);
                 const newLogRef = push(logsRef);
                 await set(newLogRef, { timestamp: new Date().toLocaleString('ko-KR'), question: q, answer: a });
-            } catch (e) {
-                console.error("Firebase DB 저장 실패: ", e);
-            }
+            } catch (e) { console.error("DB 저장 실패: ", e); }
         }
     </script>
 </body>
